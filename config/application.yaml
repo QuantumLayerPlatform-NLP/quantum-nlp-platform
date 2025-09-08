@@ -1,0 +1,173 @@
+# Quantum NLP Platform Configuration
+
+app:
+  name: "quantum-nlp-platform"
+  version: "1.0.0"
+  environment: "development"
+  debug: true
+
+server:
+  host: "0.0.0.0"
+  port: 8080
+  read_timeout: 30s
+  write_timeout: 30s
+  idle_timeout: 120s
+  shutdown_timeout: 10s
+
+database:
+  primary:
+    host: "localhost"
+    port: 5432
+    user: "postgres"
+    password: "password"
+    dbname: "quantum_nlp"
+    sslmode: "disable"
+    max_open_conns: 25
+    max_idle_conns: 5
+    conn_max_lifetime: 300s
+    
+  neo4j:
+    uri: "bolt://localhost:7687"
+    username: "neo4j"
+    password: "password"
+    max_conn_pool_size: 100
+    max_conn_lifetime: 3600s
+    
+  redis:
+    addr: "localhost:6379"
+    password: ""
+    db: 0
+    pool_size: 10
+    min_idle_conns: 3
+
+azure:
+  openai:
+    enabled: true
+    endpoint: "${AZURE_OPENAI_ENDPOINT}"
+    api_key: "${AZURE_OPENAI_API_KEY}"
+    api_version: "2024-02-01"
+    
+    deployments:
+      gpt4:
+        name: "gpt-4-turbo"
+        model: "gpt-4-1106-preview"
+        max_tokens: 4096
+        rate_limit: 300
+        cost_per_1k_input: 0.01
+        cost_per_1k_output: 0.03
+        
+      gpt35:
+        name: "gpt-35-turbo"
+        model: "gpt-35-turbo-16k"
+        max_tokens: 16384
+        rate_limit: 600
+        cost_per_1k_input: 0.003
+        cost_per_1k_output: 0.004
+
+aws:
+  bedrock:
+    enabled: true
+    region: "${AWS_REGION:-us-east-1}"
+    
+    models:
+      claude_opus:
+        model_id: "anthropic.claude-3-opus-20240229-v1:0"
+        max_tokens: 4096
+        rate_limit: 50
+        cost_per_1k_input: 0.015
+        cost_per_1k_output: 0.075
+        
+      claude_sonnet:
+        model_id: "anthropic.claude-3-sonnet-20240229-v1:0"
+        max_tokens: 4096
+        rate_limit: 100
+        cost_per_1k_input: 0.003
+        cost_per_1k_output: 0.015
+
+qlafs:
+  enabled: true
+  
+  fingerprint:
+    hash_algorithm: "sha3-256"
+    canonicalization: "jcs"
+    time_source: "roughtime.cloudflare.com:2002"
+    max_skew_seconds: 5
+    
+  transparency_log:
+    batch_size: 1000
+    flush_interval: 60s
+    retention_days: 2555
+    anchoring:
+      enabled: true
+      interval: 300s
+      chains: ["bitcoin", "ethereum", "filecoin"]
+  
+  consensus:
+    algorithm: "byzantine"
+    threshold: 0.67
+    timeout: 30s
+    validators:
+      min_count: 3
+      max_count: 21
+      
+  trust_engine:
+    enabled: true
+    update_interval: 300s
+    cache_ttl: 3600s
+    factors:
+      capsule_success_rate: 0.25
+      human_approval_rate: 0.20
+      drift_stability: 0.15
+      consensus_validation: 0.15
+      lineage_reputation: 0.10
+      age_factor: 0.10
+      peer_attestations: 0.05
+
+security:
+  hsm:
+    enabled: true
+    slot: 0
+    pin: "${HSM_PIN}"
+    key_rotation_days: 90
+    
+  authentication:
+    jwt_secret: "${JWT_SECRET}"
+    jwt_expiry: 15m
+    refresh_expiry: 24h
+    mfa_required: false
+    
+  cors:
+    enabled: true
+    allowed_origins: ["http://localhost:3000", "http://localhost:3001", "http://localhost:3002"]
+    allowed_methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+    allowed_headers: ["Authorization", "Content-Type", "X-Requested-With"]
+    
+  rate_limiting:
+    enabled: true
+    requests_per_minute: 1000
+    burst: 100
+
+monitoring:
+  metrics:
+    enabled: true
+    port: 9090
+    path: "/metrics"
+    
+  tracing:
+    enabled: true
+    service_name: "quantum-nlp-platform"
+    jaeger_endpoint: "http://localhost:14268/api/traces"
+    sampling_rate: 0.1
+    
+  logging:
+    level: "info"
+    format: "json"
+    output: "stdout"
+
+feature_flags:
+  multi_model_routing: true
+  cost_optimization: true
+  preview_environments: true
+  real_time_monitoring: true
+  zk_privacy_proofs: false
+  quantum_resistant_crypto: false

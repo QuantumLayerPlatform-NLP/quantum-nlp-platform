@@ -1,0 +1,533 @@
+openapi: 3.0.0
+info:
+  title: Quantum NLP Platform API
+  version: 1.0.0
+  description: Multi-cloud NLP platform with QLAFS verification
+  contact:
+    name: QuantumLayer Team
+    email: support@quantumnlp.io
+    url: https://quantumnlp.io
+  license:
+    name: Proprietary
+    url: https://quantumnlp.io/license
+
+servers:
+  - url: https://api.quantumnlp.io/v1
+    description: Production
+  - url: https://staging-api.quantumnlp.io/v1
+    description: Staging
+  - url: http://localhost:8080/api/v1
+    description: Development
+
+security:
+  - BearerAuth: []
+
+paths:
+  /process:
+    post:
+      summary: Process NLP request
+      operationId: processNLP
+      tags:
+        - NLP Processing
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - text
+                - intent_type
+              properties:
+                text:
+                  type: string
+                  description: Input text to process
+                  example: "Explain quantum computing in simple terms"
+                intent_type:
+                  type: string
+                  enum: [completion, classification, embedding, extraction]
+                  description: Type of NLP processing
+                model_preference:
+                  type: string
+                  enum: [azure_gpt4, aws_claude_opus, aws_claude_sonnet, auto]
+                  default: auto
+                  description: Preferred model for processing
+                options:
+                  type: object
+                  properties:
+                    temperature:
+                      type: number
+                      minimum: 0
+                      maximum: 1
+                      default: 0.7
+                      description: Randomness in output
+                    max_tokens:
+                      type: integer
+                      minimum: 1
+                      maximum: 4096
+                      description: Maximum tokens to generate
+                    streaming:
+                      type: boolean
+                      default: false
+                      description: Enable streaming response
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: string
+                    description: Processed result
+                  model_used:
+                    type: string
+                    description: Model that processed the request
+                  fingerprint:
+                    type: string
+                    description: QLAFS fingerprint
+                  trust_score:
+                    type: number
+                    minimum: 0
+                    maximum: 1
+                    description: Trust score for the processing
+                  tokens_used:
+                    type: object
+                    properties:
+                      input:
+                        type: integer
+                      output:
+                        type: integer
+                  cost:
+                    type: number
+                    description: Processing cost in USD
+                  latency_ms:
+                    type: integer
+                    description: Processing latency in milliseconds
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /agents:
+    get:
+      summary: List agents
+      operationId: listAgents
+      tags:
+        - Agent Management
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            maximum: 200
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, inactive, error]
+      responses:
+        '200':
+          description: List of agents
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  agents:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Agent'
+                  total:
+                    type: integer
+                  limit:
+                    type: integer
+                  offset:
+                    type: integer
+    post:
+      summary: Create new agent
+      operationId: createAgent
+      tags:
+        - Agent Management
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentConfig'
+      responses:
+        '201':
+          description: Agent created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Agent'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /agents/{agent_id}:
+    get:
+      summary: Get agent details
+      operationId: getAgent
+      tags:
+        - Agent Management
+      parameters:
+        - $ref: '#/components/parameters/AgentId'
+      responses:
+        '200':
+          description: Agent details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Agent'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /agents/{agent_id}/verify:
+    get:
+      summary: Verify agent with QLAFS
+      operationId: verifyAgent
+      tags:
+        - QLAFS Verification
+      parameters:
+        - $ref: '#/components/parameters/AgentId'
+      responses:
+        '200':
+          description: Verification result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerificationResult'
+
+  /agents/{agent_id}/fingerprint:
+    get:
+      summary: Get agent fingerprint
+      operationId: getFingerprint
+      tags:
+        - QLAFS Verification
+      parameters:
+        - $ref: '#/components/parameters/AgentId'
+      responses:
+        '200':
+          description: Agent fingerprint
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Fingerprint'
+
+  /agents/{agent_id}/lineage:
+    get:
+      summary: Get agent lineage
+      operationId: getLineage
+      tags:
+        - QLAFS Verification
+      parameters:
+        - $ref: '#/components/parameters/AgentId'
+        - name: depth
+          in: query
+          schema:
+            type: integer
+            default: 5
+            minimum: 1
+            maximum: 20
+      responses:
+        '200':
+          description: Agent lineage graph
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LineageGraph'
+
+  /metrics/dashboard:
+    get:
+      summary: Get dashboard metrics
+      operationId: getDashboardMetrics
+      tags:
+        - Metrics
+      responses:
+        '200':
+          description: Dashboard metrics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardMetrics'
+
+  /health:
+    get:
+      summary: Health check
+      operationId: healthCheck
+      tags:
+        - System
+      security: []
+      responses:
+        '200':
+          description: System health
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "healthy"
+                  version:
+                    type: string
+                    example: "1.0.0"
+                  uptime:
+                    type: integer
+                    description: Uptime in seconds
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    AgentId:
+      name: agent_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+        example: "550e8400-e29b-41d4-a716-446655440000"
+
+  schemas:
+    Agent:
+      type: object
+      required:
+        - id
+        - name
+        - status
+        - trust_score
+        - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        status:
+          type: string
+          enum: [active, inactive, error]
+        trust_score:
+          type: number
+          minimum: 0
+          maximum: 1
+        fingerprint:
+          $ref: '#/components/schemas/Fingerprint'
+        created_at:
+          type: string
+          format: date-time
+        last_activity:
+          type: string
+          format: date-time
+
+    AgentConfig:
+      type: object
+      required:
+        - name
+        - type
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        type:
+          type: string
+          enum: [nlp_processor, classifier, generator]
+        description:
+          type: string
+          maxLength: 500
+        config:
+          type: object
+
+    Fingerprint:
+      type: object
+      required:
+        - static
+        - behavioral
+        - cognitive
+        - compositional
+        - merkle_root
+        - timestamp
+      properties:
+        static:
+          type: string
+          pattern: '^0x[0-9a-fA-F]{64}$'
+          description: SHA3-256 of static components
+        behavioral:
+          type: string
+          pattern: '^0x[0-9a-fA-F]{64}$'
+          description: SHA3-256 of behavioral patterns
+        cognitive:
+          type: string
+          pattern: '^0x[0-9a-fA-F]{64}$'
+          description: SHA3-256 of cognitive signatures
+        compositional:
+          type: string
+          pattern: '^0x[0-9a-fA-F]{64}$'
+          description: SHA3-256 of module fingerprints
+        merkle_root:
+          type: string
+          pattern: '^0x[0-9a-fA-F]{64}$'
+          description: Merkle root of all layers
+        timestamp:
+          type: string
+          format: date-time
+        version:
+          type: string
+          example: "1.0"
+
+    VerificationResult:
+      type: object
+      properties:
+        verified:
+          type: boolean
+        fingerprint:
+          $ref: '#/components/schemas/Fingerprint'
+        trust_score:
+          type: number
+          minimum: 0
+          maximum: 1
+        lineage:
+          type: array
+          items:
+            type: string
+        transparency_log_entry:
+          type: string
+          format: uri
+
+    LineageGraph:
+      type: object
+      properties:
+        nodes:
+          type: array
+          items:
+            $ref: '#/components/schemas/LineageNode'
+        edges:
+          type: array
+          items:
+            $ref: '#/components/schemas/LineageEdge'
+
+    LineageNode:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        type:
+          type: string
+          enum: [agent, model, output]
+        trust_score:
+          type: number
+        fingerprint:
+          type: string
+        generation:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+
+    LineageEdge:
+      type: object
+      properties:
+        source:
+          type: string
+        target:
+          type: string
+        type:
+          type: string
+          enum: [spawned, evolved, merged]
+        mutation_delta:
+          type: number
+          minimum: 0
+          maximum: 1
+        timestamp:
+          type: string
+          format: date-time
+
+    DashboardMetrics:
+      type: object
+      properties:
+        active_agents:
+          type: integer
+        total_requests:
+          type: integer
+        trust_score_avg:
+          type: number
+        daily_cost:
+          type: number
+        latency_p99:
+          type: number
+        error_rate:
+          type: number
+        success_rate:
+          type: number
+        system_health:
+          type: number
+
+    Error:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+        request_id:
+          type: string
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    
+    RateLimited:
+      description: Rate limit exceeded
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
