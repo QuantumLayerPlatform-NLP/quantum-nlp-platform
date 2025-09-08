@@ -122,5 +122,4 @@ jobs:
         build-args: |
           VERSION=${{ github.ref_name }}
           BUILD_TIME=${{ github.run_id }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
+        no-cache: true
