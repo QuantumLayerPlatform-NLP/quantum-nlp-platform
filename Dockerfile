@@ -12,9 +12,8 @@ WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
 
-# Copy source code
+# Copy source code  
 COPY backend/ ./backend/
-COPY pkg/ ./pkg/
 
 # Build the application
 ARG SERVICE_NAME=nlp-gateway
