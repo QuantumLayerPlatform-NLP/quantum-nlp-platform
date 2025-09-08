@@ -11,159 +11,67 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/quantumlayer/quantum-nlp-platform/backend/pkg/common"
-	"github.com/quantumlayer/quantum-nlp-platform/backend/services/qlafs-consensus/internal/config"
-	"github.com/quantumlayer/quantum-nlp-platform/backend/services/qlafs-consensus/internal/handlers"
-	"github.com/quantumlayer/quantum-nlp-platform/backend/services/qlafs-consensus/internal/middleware"
-	"github.com/quantumlayer/quantum-nlp-platform/backend/services/qlafs-consensus/internal/services"
 )
 
 func main() {
-	// Load configuration
-	cfg, err := config.Load()
-	if err != nil {
-		log.Fatalf("Failed to load configuration: %v", err)
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
 	}
 
-	// Initialize logger
-	logger := common.NewLogger(cfg.LogLevel, cfg.LogFormat)
-	logger.Info("Starting QLAFS Consensus Service", "version", cfg.Version, "port", cfg.Port)
+	r := gin.Default()
+	
+	// Health check endpoint
+	r.GET("/health", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{
+			"status":  "healthy",
+			"service": "qlafs-consensus",
+			"version": "1.0.0",
+			"time":    time.Now().UTC(),
+		})
+	})
+	
+	// Ready endpoint
+	r.GET("/ready", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{
+			"status": "ready",
+			"service": "qlafs-consensus",
+		})
+	})
 
-	// Initialize database connection
-	db, err := common.NewDatabase(cfg.Database)
-	if err != nil {
-		logger.Fatal("Failed to connect to database", "error", err)
-	}
-	defer db.Close()
+	// Basic API endpoint
+	r.GET("/api/v1/status", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{
+			"message": "Quantum NLP Platform - Gateway Service",
+			"status":  "running",
+		})
+	})
 
-	// Initialize Redis client for coordination
-	redisClient, err := common.NewRedisClient(cfg.Redis)
-	if err != nil {
-		logger.Fatal("Failed to connect to Redis", "error", err)
-	}
-	defer redisClient.Close()
-
-	// Initialize consensus services
-	byzantineService := services.NewByzantineConsensusService(logger, cfg.Consensus, redisClient)
-	validatorService := services.NewValidatorService(logger, db, redisClient)
-	orchestratorService := services.NewConsensusOrchestratorService(
-		logger,
-		byzantineService,
-		validatorService,
-		db,
-		redisClient,
-	)
-
-	// Start consensus engine
-	consensusEngine := services.NewConsensusEngine(logger, orchestratorService, cfg.Consensus)
-	go consensusEngine.Start()
-
-	// Initialize HTTP handlers
-	healthHandler := handlers.NewHealthHandler(logger)
-	consensusHandler := handlers.NewConsensusHandler(logger, orchestratorService)
-	validatorHandler := handlers.NewValidatorHandler(logger, validatorService)
-
-	// Set up Gin router
-	if cfg.Environment == "production" {
-		gin.SetMode(gin.ReleaseMode)
-	}
-
-	router := gin.New()
-
-	// Middleware
-	router.Use(middleware.Logger(logger))
-	router.Use(middleware.Recovery(logger))
-	router.Use(middleware.CORS())
-	router.Use(middleware.RequestID())
-	router.Use(middleware.RateLimit(cfg.RateLimit))
-
-	// Health check endpoints
-	router.GET("/health", healthHandler.Health)
-	router.GET("/ready", healthHandler.Ready)
-
-	// API routes
-	api := router.Group("/api/v1")
-	{
-		// Authentication middleware for API routes
-		api.Use(middleware.Auth(logger, redisClient))
-
-		// Consensus endpoints
-		consensus := api.Group("/consensus")
-		{
-			consensus.POST("/propose", consensusHandler.ProposeValidation)
-			consensus.GET("/status/:proposalId", consensusHandler.GetConsensusStatus)
-			consensus.POST("/vote", consensusHandler.SubmitVote)
-			consensus.GET("/results/:proposalId", consensusHandler.GetConsensusResult)
-			consensus.GET("/history", consensusHandler.GetConsensusHistory)
-		}
-
-		// Validator management endpoints
-		validators := api.Group("/validators")
-		{
-			validators.GET("", validatorHandler.ListValidators)
-			validators.POST("", validatorHandler.RegisterValidator)
-			validators.GET("/:id", validatorHandler.GetValidator)
-			validators.PUT("/:id", validatorHandler.UpdateValidator)
-			validators.DELETE("/:id", validatorHandler.DeregisterValidator)
-			validators.POST("/:id/challenge", validatorHandler.ChallengeValidator)
-			validators.GET("/:id/reputation", validatorHandler.GetValidatorReputation)
-		}
-
-		// Network health endpoints
-		network := api.Group("/network")
-		{
-			network.GET("/status", consensusHandler.GetNetworkStatus)
-			network.GET("/metrics", consensusHandler.GetNetworkMetrics)
-			network.POST("/sync", consensusHandler.SynchronizeNetwork)
-		}
-
-		// Byzantine fault tolerance endpoints
-		bft := api.Group("/bft")
-		{
-			bft.GET("/status", consensusHandler.GetByzantineStatus)
-			bft.POST("/suspect", consensusHandler.ReportSuspiciousNode)
-			bft.GET("/blacklist", consensusHandler.GetBlacklistedNodes)
-		}
-	}
-
-	// Prometheus metrics endpoint
-	router.GET("/metrics", gin.WrapH(common.PrometheusHandler()))
-
-	// Create HTTP server
-	server := &http.Server{
-		Addr:         fmt.Sprintf(":%d", cfg.Port),
-		Handler:      router,
-		ReadTimeout:  cfg.ReadTimeout,
-		WriteTimeout: cfg.WriteTimeout,
-		IdleTimeout:  cfg.IdleTimeout,
+	srv := &http.Server{
+		Addr:    ":" + port,
+		Handler: r,
 	}
 
 	// Start server in goroutine
 	go func() {
-		logger.Info("Starting HTTP server", "port", cfg.Port)
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			logger.Fatal("Failed to start server", "error", err)
+		log.Printf("Starting NLP Gateway on port %s", port)
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("Failed to start server: %v", err)
 		}
 	}()
 
-	// Wait for interrupt signal to gracefully shut down the server
+	// Wait for interrupt signal to gracefully shutdown the server
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
+	log.Println("Shutting down server...")
 
-	logger.Info("Shutting down server...")
-
-	// Give outstanding requests a deadline for completion
-	ctx, cancel := context.WithTimeout(context.Background(), cfg.ShutdownTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	// Stop consensus engine
-	consensusEngine.Stop()
-
-	// Attempt graceful shutdown
-	if err := server.Shutdown(ctx); err != nil {
-		logger.Fatal("Server forced to shutdown", "error", err)
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Fatal("Server forced to shutdown:", err)
 	}
 
-	logger.Info("Server exited")
+	log.Println("Server exited")
 }
