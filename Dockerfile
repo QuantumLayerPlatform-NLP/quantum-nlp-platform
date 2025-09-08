@@ -34,6 +34,9 @@ COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 # Copy the binary from builder stage
 COPY --from=builder /app/main .
 
+# Make binary executable
+RUN chmod +x ./main
+
 # Create non-root user
 RUN adduser -D -s /bin/sh quantum
 USER quantum

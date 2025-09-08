@@ -25,7 +25,7 @@ spec:
         prometheus.io/path: "/metrics"
     spec:
       imagePullSecrets:
-        - name: docker-registry-secret
+        - name: ghcr-secret
       containers:
         - name: nlp-gateway
           image: ghcr.io/quantumlayerplatform-nlp/quantum-nlp-nlp-gateway:latest
