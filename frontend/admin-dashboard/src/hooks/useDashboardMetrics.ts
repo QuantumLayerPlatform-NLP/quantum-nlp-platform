@@ -229,7 +229,7 @@ export const useDashboardMetrics = (options: UseDashboardMetricsOptions = {}) =>
 
   // Invalidate and refetch metrics
   const invalidateMetrics = useCallback(() => {
-    queryClient.invalidateQueries(['dashboard-metrics']);
+    queryClient.invalidateQueries({ queryKey: ['dashboard-metrics'] });
   }, [queryClient]);
 
   // Manual refresh
