@@ -24,9 +24,9 @@ const HomePageContent: React.FC = () => {
   const { data: realtimeData, connected } = useWebSocket('/ws/metrics')
   const {
     data: metrics,
-    isLoading: metricsLoading,
+    loading: metricsLoading,
     error: metricsError,
-    refetch
+    actions: { refetch }
   } = useDashboardMetrics()
 
   if (authLoading || metricsLoading) {
