@@ -151,7 +151,7 @@ export const useDashboardMetrics = (options: UseDashboardMetricsOptions = {}) =>
     retry: 3,
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
     staleTime: 10000, // Consider data stale after 10 seconds
-    cacheTime: 300000, // Keep in cache for 5 minutes
+    gcTime: 300000, // Keep in cache for 5 minutes (renamed from cacheTime in React Query v5)
   });
 
   // Handle real-time updates
