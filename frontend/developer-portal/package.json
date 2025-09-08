@@ -46,7 +46,6 @@
     "uuid": "^9.0.1",
     "classnames": "^2.3.2",
     "react-beautiful-dnd": "^13.1.1",
-    "react-json-view": "^1.21.3",
     "monaco-editor": "^0.45.0",
     "@monaco-editor/react": "^4.6.0",
     "react-ace": "^10.1.0",
