@@ -1,0 +1,98 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: developer-portal
+  namespace: quantum-nlp
+  labels:
+    app: developer-portal
+    component: frontend
+    tier: developer
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: developer-portal
+  template:
+    metadata:
+      labels:
+        app: developer-portal
+        component: frontend
+        tier: developer
+    spec:
+      imagePullSecrets:
+        - name: ghcr-secret
+      containers:
+      - name: developer-portal
+        image: ghcr.io/quantumlayerplatform-nlp/quantum-nlp-developer-portal:latest
+        ports:
+        - containerPort: 3000
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: NEXT_PUBLIC_API_URL
+          value: "http://nlp-gateway:8080"
+        - name: NEXT_PUBLIC_WS_URL
+          value: "ws://nlp-gateway:8080"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 3000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 3000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: developer-portal
+  namespace: quantum-nlp
+  labels:
+    app: developer-portal
+    component: frontend
+spec:
+  selector:
+    app: developer-portal
+  ports:
+  - port: 3002
+    targetPort: 3000
+    protocol: TCP
+    name: http
+  type: ClusterIP
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: developer-portal-ingress
+  namespace: quantum-nlp
+  labels:
+    app: developer-portal
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+spec:
+  rules:
+  - host: dev.quantum-nlp.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: developer-portal
+            port:
+              number: 3002
