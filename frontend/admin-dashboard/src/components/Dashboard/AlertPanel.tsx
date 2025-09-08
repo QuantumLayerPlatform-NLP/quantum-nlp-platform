@@ -131,7 +131,11 @@ export const AlertPanel: React.FC<AlertPanelProps> = ({ incidents, className = '
   };
 
   const handleAcknowledge = (alertId: string) => {
-    setAcknowledgedAlerts(prev => new Set([...prev, alertId]));
+    setAcknowledgedAlerts(prev => {
+      const newSet = new Set(prev);
+      newSet.add(alertId);
+      return newSet;
+    });
   };
 
   const filteredAlerts = mockAlerts.filter(alert => 
