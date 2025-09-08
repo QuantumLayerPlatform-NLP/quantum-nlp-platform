@@ -6,7 +6,6 @@ import { QlafsVisualizer } from '../components/QlafsVisualizer/QlafsVisualizer'
 import { useAuth } from '../hooks/useAuth'
 import { useWebSocket } from '../hooks/useWebSocket'
 import { useDashboardMetrics } from '../hooks/useDashboardMetrics'
-import '../styles/globals.css'
 
 // Create a client for React Query
 const queryClient = new QueryClient({
